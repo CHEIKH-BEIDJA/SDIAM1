@@ -14,9 +14,9 @@ class Node(object):
         # flag for operators to distinguish from operands
         self.operator = False
 
-    def __dict__(self) -> str:
-        return str(self.data.__dict__)
-        pass
+    def __repr__(self) -> str:
+        """Return a string representation of this parse tree node."""
+        return 'Node({!r})'.format(self.data)
 
     def is_leaf(self) -> bool:
         """Return True if this node is a leaf(that is operand)."""
@@ -80,11 +80,107 @@ class AST(object):
             self.size += 1
         print(f"le  nombre de noeuds ajoutés est : {i} noeuds   ")
 
-    def Postfix(self, root):
+    def infix_to_postfix(self, infix_input: list) -> list:
+        priority = {'+': 0, '-': 0, '*': 1, '/': 1, '^': 2}
+        # clean the infix expression
+        clean_infix = self.token_input(infix_input)
+        i = 0
+        postfix = []
+        operators = "+-/*"
+        stack = deque()
+        while i < len(clean_infix):
+            char = clean_infix[i]
+            # vérifier si char est un opérateur
+            if char in operators:
+                # check if the stack is empty or the top element is '('
+                if len(stack) == 0 or stack[0] == '(':
+                    # just push the operator into stack
+                    stack.appendleft(char)
+                    i += 1
+                # otherwise compare the curr char with top of the element
+                else:
+                    # peek the top element
+                    top_element = stack[0]
+                    # check for precedence
+                    # if they have equal precedence
+                    if priority[char] >= priority[top_element]:
+                        popped_element = stack.popleft()
+                        postfix.append(popped_element)
+                        stack.appendleft(char)
+                        i += 1
+                    elif priority[char] < priority[top_element]:
+                        # pop the top element
+                        popped_element = stack.popleft()
+                        postfix.append(popped_element)
+            elif char == '(':
+                # add it to the stack
+                stack.appendleft(char)
+                i += 1
+            elif char == ')':
+                top_element = stack[0]
+                while top_element != '(':
+                    popped_element = stack.popleft()
+                    postfix.append(popped_element)
+                    # update the top element
+                    top_element = stack[0]
+                # maintenant nous sautons les parenthèses ouvrantes et les supprimons
+                stack.popleft()
+                i += 1
+            # char is operand
+            else:
+                postfix.append(char)
+                i += 1
+        if len(stack) > 0:
+            for i in range(len(stack)):
+                postfix.append(stack.popleft())
+        print(f"postfix expression est : {postfix}")
+        return postfix
+
+    def token_input(self, infix_exp):
+        expresion = []
+        for i in infix_exp:
+            if i.isdigit() or i == '.':
+                if expresion and (expresion[-1].isdigit() or '.' in expresion[-1]):
+                    expresion[-1] += i
+                else:
+                    expresion.append(i)
+            elif i in '*/()+-':
+                expresion.append(i)
+        print(f"token expression : {expresion}")
+        return expresion
+
+    # parcours prefixe RGD
+    def prefix(self, root):
         if root is not None:
-            self.Postfix(root.left)
-            self.Postfix(root.right)
             print(root.data, end="\t")
+            self.prefix(root.left)
+            self.prefix(root.right)
+
+    # parcours infixe GRD
+    def infix(self, root):
+        if root is not None:
+            self.infix(root.left)
+            print(root.data, end="\t")
+            self.infix(root.right)
+
+        # parcours postfix GDR
+    def postfix(self, root):
+        if root is not None:
+            self.postfix(root.left)
+            self.postfix(root.right)
+            print(root.data, end="\t")
+
+    def display(self, root):
+        if root is not None:
+            print('(', end='')
+            if root.left is not None:
+                self.display(root.left)
+                print(',', end='')
+            print(root.data, end='')
+            if root.right is not None:
+                print(',', end='')
+                self.display(root.right)
+            print(')', end='')
 
     def evaluate(self, root) -> float:
         # Arbre vide
@@ -116,81 +212,23 @@ class AST(object):
         else:
             return left_value * right_value
 
-    def infix_to_postfix(self, infix_input: list) -> list:
-        priority = {'+': 0, '-': 0, '*': 1, '/': 1, '^': 2}
-        # clean the infix expression
-        clean_infix = self._clean_input(infix_input)
-        i = 0
-        postfix = []
-        operators = "+-/*"
-        stack = deque()
-        while i < len(clean_infix):
-            char = clean_infix[i]
-            #vérifier si char est un opérateur
-            if char in operators:
-                # check if the stack is empty or the top element is '('
-                if len(stack) == 0 or stack[0] == '(':
-                    # just push the operator into stack
-                    stack.appendleft(char)
-                    i += 1
-                # otherwise compare the curr char with top of the element
-                else:
-                    # peek the top element
-                    top_element = stack[0]
-                    # check for precedence
-                    # if they have equal precedence
-                    if priority[char] >= priority[top_element]:
-                            popped_element = stack.popleft()
-                            postfix.append(popped_element)
-                            stack.appendleft(char)
-                            i += 1
-                    elif priority[char] < priority[top_element]:
-                        # pop the top element
-                        popped_element = stack.popleft()
-                        postfix.append(popped_element)
-            elif char == '(': 
-                # add it to the stack
-                stack.appendleft(char)
-                i += 1
-            elif char == ')':
-                top_element = stack[0]
-                while top_element != '(':
-                    popped_element = stack.popleft()
-                    postfix.append(popped_element)
-                    # update the top element
-                    top_element = stack[0]
-                # maintenant nous sautons les parenthèses ouvrantes et les supprimons
-                stack.popleft()
-                i += 1
-            # char is operand
-            else:
-                postfix.append(char)
-                i += 1
-        if len(stack) > 0:
-            for i in range(len(stack)):
-                postfix.append(stack.popleft())
-        print(f"postfix expression est : {postfix}")
-        return postfix
-        
-    def _clean_input(self, infix_exp):
-        expresion = []
-        for i in infix_exp:
-            if i.isdigit() or i == '.':
-                if expresion and (expresion[-1].isdigit() or '.' in expresion[-1]):
-                    expresion[-1] += i
-                else:
-                    expresion.append(i)
-            elif i in '*/()+-':
-                expresion.append(i)
-        print(f"token expression : {expresion}")
-        return expresion
 
 if __name__ == "__main__":
     user_input = input("Enter une expresion ne contient pas un puissance (^): ")
     tree_obj = AST(user_input)
     # print(f"arbre: {tree_obj}")
     root = tree_obj.root
-    print("postfix :")
-    tree_obj.Postfix(root)
+    print("prefix :")
+    tree_obj.prefix(root)
     print()
+    print("infix :")
+    tree_obj.infix(root)
+    print()
+    print("postfix :")
+    tree_obj.postfix(root)
+    print()
+    print("arbre :")
+    tree_obj.display(root)
+    print()
+    print("resultat :")
     print(f"{user_input} = {tree_obj.evaluate(root)} ")
